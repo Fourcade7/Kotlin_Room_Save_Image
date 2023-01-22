@@ -1,51 +1,47 @@
 package com.pr7.kotlin_room_save_image
 
+import android.R.attr.bitmap
 import android.content.ContentValues
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.ImageDecoder
-import android.graphics.drawable.Drawable
 import android.net.Uri
-import android.os.Build
-import androidx.appcompat.app.AppCompatActivity
-import android.os.Bundle
-import android.os.Environment
+import android.os.*
 import android.provider.MediaStore
 import android.view.View
 import android.webkit.MimeTypeMap
+import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.room.Room
 import coil.ImageLoader
-import coil.load
 import coil.request.ImageRequest
-import coil.request.SuccessResult
-import coil.transform.CircleCropTransformation
-import coil.transform.RoundedCornersTransformation
-import com.bumptech.glide.Glide
-import com.bumptech.glide.load.DataSource
-import com.bumptech.glide.load.engine.GlideException
-import com.bumptech.glide.request.RequestListener
-import com.bumptech.glide.request.target.Target
 import com.pr7.kotlin_room_save_image.Constants.TABLE_NAME
 import com.pr7.kotlin_room_save_image.databinding.ActivityMainBinding
 import com.pr7.kotlin_room_save_image.room.AppDatabase
 import com.pr7.kotlin_room_save_image.room.User
 import com.pr7.kotlin_room_save_image.room.UserDao
 import com.pr7.kotlin_room_save_image.ui.UserAdapter
-import java.io.ByteArrayOutputStream
-import java.io.File
-import java.io.FileOutputStream
-import java.io.OutputStream
+import java.io.*
+import java.net.HttpURLConnection
+import java.net.MalformedURLException
+import java.net.URL
+import java.util.concurrent.Executors
+
+
 class MainActivity : AppCompatActivity() {
     lateinit var binding: ActivityMainBinding
     var imageuri:Uri?=null
+    var downloaduri:Uri?=null
     lateinit var userDao: UserDao
     lateinit var userAdapter: UserAdapter
+    val mWebPath="https://rus-traktor.ru/upload/iblock/f74/f74f39dbc9b60954c926d72401adf1cc.jpg"
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding= ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
+
 
         val db = Room.databaseBuilder(
             applicationContext,
@@ -61,7 +57,7 @@ class MainActivity : AppCompatActivity() {
             buttonsave.setOnClickListener {
                 val user=User(
                     uid = 0,
-                    name = "${edittextimagename.text.toString()}",
+                    name = "${edittextimagename.text}",
                     image =bitmapconverttoBytArray(uriconverttoBitmap(imageuri!!))
                 )
                 savetodatabase(user)
@@ -71,13 +67,56 @@ class MainActivity : AppCompatActivity() {
 
         }
 
+
         readfromdatabase()
-        coilimagelibrary()
+
+            //coilimagelibrary()
+        downloadimagefromuri()
 
 
 
 
 
+
+
+
+    }
+    fun downloadimagefromuri(){
+        val myExecutor = Executors.newSingleThreadExecutor()
+        val myHandler = Handler(Looper.getMainLooper())
+        myExecutor.execute {
+           var mImage = mLoad(mWebPath)
+            myHandler.post {
+                binding.imageviewfromgallery.setImageBitmap(mImage)
+                if(mImage!=null){
+                    saveMediaToStorage(mImage)
+                }
+            }
+        }
+    }
+    private fun mLoad(string: String): Bitmap? {
+        val url: URL = mStringToURL(string)!!
+        val connection: HttpURLConnection?
+        try {
+            connection = url.openConnection() as HttpURLConnection
+            connection.connect()
+            val inputStream: InputStream = connection.inputStream
+            val bufferedInputStream = BufferedInputStream(inputStream)
+            return BitmapFactory.decodeStream(bufferedInputStream)
+        } catch (e: IOException) {
+            e.printStackTrace()
+            Toast.makeText(applicationContext, "Error", Toast.LENGTH_LONG).show()
+        }
+        return null
+    }
+
+    private fun mStringToURL(string: String): URL? {
+        try {
+            return URL(string)
+        } catch (e: MalformedURLException) {
+            e.printStackTrace()
+        }
+        return null
     }
 
     fun readfromdatabase(){
@@ -174,7 +213,7 @@ class MainActivity : AppCompatActivity() {
     }
 
 
-    fun coilimagelibrary(){
+     fun coilimagelibrary(){
         //load 1
 //        binding.imageviewfromgallery.load("https://rus-traktor.ru/upload/iblock/f74/f74f39dbc9b60954c926d72401adf1cc.jpg"){
 //            crossfade(true)
@@ -186,21 +225,26 @@ class MainActivity : AppCompatActivity() {
 
 
         //load 2
-//        val imageLoader= ImageLoader(this@MainActivity)
-//        val request = ImageRequest.Builder(this@MainActivity)
-//            .data("https://rus-traktor.ru/upload/iblock/f74/f74f39dbc9b60954c926d72401adf1cc.jpg")
-//            .target(binding.imageviewfromgallery)
-//            .listener(
-//                onStart = {
-//                    binding.progressbar1.visibility=View.VISIBLE
-//                },
-//                onSuccess = { request, metadata ->
-//                    binding.progressbar1.visibility=View.INVISIBLE
-//
-//                }
-//            )
-//            .build()
-//        imageLoader.enqueue(request)
+        val imageLoader= ImageLoader(this@MainActivity)
+        val request = ImageRequest.Builder(this@MainActivity)
+            .data("https://rus-traktor.ru/upload/iblock/f74/f74f39dbc9b60954c926d72401adf1cc.jpg")
+            .target(binding.imageviewfromgallery)
+            .listener(
+                onStart = {
+                    binding.progressbar1.visibility=View.VISIBLE
+                },
+                onSuccess = { request, metadata ->
+                    binding.progressbar1.visibility=View.INVISIBLE
+
+                }
+            )
+            .build()
+         imageLoader.enqueue(request)
+
+         //val drawable = imageLoader.execute(request).drawable
+//         val drawable = (imageLoader.execute(request) as SuccessResult).drawable
+//         val mybitmap=(drawable as BitmapDrawable).bitmap
+//         saveMediaToStorage(bitmap = mybitmap)
 
         //converttobitmap
 
@@ -216,34 +260,34 @@ class MainActivity : AppCompatActivity() {
 
         //use glide
 
-        Glide.with(this@MainActivity)
-            .load("https://dizainsantehnika.ru/upload/no_photo.png")
-            .listener(object :RequestListener<Drawable>{
-                override fun onResourceReady(
-                    resource: Drawable?,
-                    model: Any?,
-                    target: Target<Drawable>?,
-                    dataSource: DataSource?,
-                    isFirstResource: Boolean
-                ): Boolean {
-                    binding.progressbar1.visibility=View.GONE
-                    return false
-                }
-
-                override fun onLoadFailed(
-                    e: GlideException?,
-                    model: Any?,
-                    target: Target<Drawable>?,
-                    isFirstResource: Boolean
-                ): Boolean {
-
-                    return false
-
-                }
-
-            })
-            //.dontAnimate()
-            .into(binding.imageviewfromgallery)
+//        Glide.with(this@MainActivity)
+//            .load("https://dizainsantehnika.ru/upload/no_photo.png")
+//            .listener(object :RequestListener<Drawable>{
+//                override fun onResourceReady(
+//                    resource: Drawable?,
+//                    model: Any?,
+//                    target: Target<Drawable>?,
+//                    dataSource: DataSource?,
+//                    isFirstResource: Boolean
+//                ): Boolean {
+//                    binding.progressbar1.visibility=View.GONE
+//                    return false
+//                }
+//
+//                override fun onLoadFailed(
+//                    e: GlideException?,
+//                    model: Any?,
+//                    target: Target<Drawable>?,
+//                    isFirstResource: Boolean
+//                ): Boolean {
+//
+//                    return false
+//
+//                }
+//
+//            })
+//            //.dontAnimate()
+//            .into(binding.imageviewfromgallery)
     }
 
 
