@@ -8,11 +8,13 @@ import android.graphics.ImageDecoder
 import android.net.Uri
 import android.os.*
 import android.provider.MediaStore
+import android.util.Log
 import android.view.View
 import android.webkit.MimeTypeMap
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.net.toUri
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.room.Room
 import coil.ImageLoader
@@ -23,6 +25,9 @@ import com.pr7.kotlin_room_save_image.room.AppDatabase
 import com.pr7.kotlin_room_save_image.room.User
 import com.pr7.kotlin_room_save_image.room.UserDao
 import com.pr7.kotlin_room_save_image.ui.UserAdapter
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
 import java.io.*
 import java.net.HttpURLConnection
 import java.net.MalformedURLException
@@ -31,12 +36,14 @@ import java.util.concurrent.Executors
 
 
 class MainActivity : AppCompatActivity() {
+    private  val TAG = "PR77777"
     lateinit var binding: ActivityMainBinding
     var imageuri:Uri?=null
+    var imageuri2:Bitmap?=null
     var downloaduri:Uri?=null
     lateinit var userDao: UserDao
     lateinit var userAdapter: UserAdapter
-    val mWebPath="https://rus-traktor.ru/upload/iblock/f74/f74f39dbc9b60954c926d72401adf1cc.jpg"
+    val imageurlstring="https://rus-traktor.ru/upload/iblock/f74/f74f39dbc9b60954c926d72401adf1cc.jpg"
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding= ActivityMainBinding.inflate(layoutInflater)
@@ -63,15 +70,18 @@ class MainActivity : AppCompatActivity() {
                 savetodatabase(user)
                 readfromdatabase()
 
+                Log.d(TAG, "onCreate: ${uriconverttoBitmap(imageuri!!)}")
+                Log.d(TAG, "onCreate: $imageuri2")
+
             }
 
         }
 
 
         readfromdatabase()
+        //coilimagelibrary()
+        downloadimagefromURL(imageurlstring)
 
-            //coilimagelibrary()
-        downloadimagefromuri()
 
 
 
@@ -81,11 +91,14 @@ class MainActivity : AppCompatActivity() {
 
 
     }
-    fun downloadimagefromuri(){
+
+    //Geecks
+    fun downloadimagefromURL(imageurl:String){
         val myExecutor = Executors.newSingleThreadExecutor()
         val myHandler = Handler(Looper.getMainLooper())
         myExecutor.execute {
-           var mImage = mLoad(mWebPath)
+           var mImage = mLoad(imageurl)
+            imageuri2=mImage
             myHandler.post {
                 binding.imageviewfromgallery.setImageBitmap(mImage)
                 if(mImage!=null){
@@ -118,6 +131,7 @@ class MainActivity : AppCompatActivity() {
         }
         return null
     }
+    //Geecks
 
     fun readfromdatabase(){
         val userAdapter=UserAdapter(this@MainActivity,userDao.getAllUsers() as ArrayList<User>)
